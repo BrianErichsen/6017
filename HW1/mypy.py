@@ -35,3 +35,46 @@ plt.title('Histogram of Normal Distribution Samples')
 plt.xlabel('Value')
 plt.ylabel('Frequency')
 plt.show()
+
+#------------------------------
+# Load data
+df = pd.read_csv('2020-PM2.5.csv', header=2, parse_dates=['Date'], index_col='Date')
+# print(df.head())
+# print(df.columns)
+station_name = 'Unnamed: 22'
+station_data = df[[station_name]]
+
+# Plotting yearly data for a specific station
+plt.figure(figsize=(12, 6))
+plt.plot(station_data.index, station_data[station_name], label='PM2.5')
+plt.title(f'PM2.5 Levels over a Year at {station_name}')
+plt.xlabel('Date')
+plt.ylabel('PM2.5 Level')
+plt.legend()
+plt.show()
+# -----------------------
+#Plotting monthly means PM2.5 levels
+monthly_mean = station_data.resample('M').mean()
+
+plt.figure(figsize=(10, 6))
+monthly_mean.plot(kind='bar')
+plt.title(f'Monthly Mean PM2.5 Levels at {station_name}')
+plt.xlabel('Month')
+plt.ylabel('Mean PM2.5 Level')
+plt.show()
+
+# Insights from visualization
+# Higher pollution levels in winter months due to temperature inversions
+#-------------------------
+#Plotting hourly mean data
+hourly_mean = station_data.groupby(station_data.index.hour).mean()
+
+plt.figure(figsize=(10, 6))
+hourly_mean.plot(kind='bar')
+plt.title(f'Hourly Mean PM2.5 Levels at {station_name}')
+plt.xlabel('Hour of the day')
+plt.ylabel('Mean PM2.5 Level')
+plt.show()
+
+# Insights from visualization
+# Hiher pollution levels during mornings and evening rush hours
