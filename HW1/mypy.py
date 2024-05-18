@@ -39,8 +39,8 @@ plt.show()
 #------------------------------
 # Load data
 df = pd.read_csv('2020-PM2.5.csv', header=2, parse_dates=['Date'], index_col='Date')
-# print(df.head())
-# print(df.columns)
+print(df.head())
+print(df.columns)
 station_name = 'Unnamed: 22'
 station_data = df[[station_name]]
 
@@ -77,4 +77,24 @@ plt.ylabel('Mean PM2.5 Level')
 plt.show()
 
 # Insights from visualization
-# Hiher pollution levels during mornings and evening rush hours
+# Higher pollution levels during mornings and evening rush hours
+
+#  More complete view of the data -- monthly
+station_data['Month'] = station_data.index.month
+plt.figure(figsize=(10, 6))
+station_data.boxplot(column=station_name, by='Month', layout=(1, 1))
+plt.title(f'Monthly PM2.5 Levels at {station_name}')
+plt.xlabel('Month')
+plt.ylabel('PM2.5 Level')
+plt.suptitle('')
+plt.show()
+
+# More complex view of the data -- hourly
+station_data['Hour'] = station_data.index.hour
+plt.figure(figsize=(10, 6))
+station_data.boxplot(column=station_name, by='Hour', layout=(1, 1))
+plt.title(f'Hourly PM2.5 Levels at {station_name}')
+plt.xlabel('Hour of Day')
+plt.ylabel('PM2.5 Level')
+plt.suptitle('')
+plt.show()
