@@ -21,7 +21,6 @@ void main()
     //Parameters for testing
     int[] k_values = [1, 5, 10, 20];
     int[] N_values = [100, 1000, 5000, 10000];
-    //int[] D_values = [2, 3, 4, 5];
     int trials = 1;
     int num_queries = 100;
     int num_reps = 50;
@@ -149,7 +148,7 @@ void main()
                 totalTime += sw.peek.total!"usecs";
             }
             long averageTime = totalTime/num_reps;
-            file.writeln("d,bucket,25,1000,"~(to!string(dim))~",U,"~(to!string(averageTime))~","~(to!string(i + 1)));
+            file.writeln("d,bucket,10,1000,"~(to!string(dim))~",U,"~(to!string(averageTime))~","~(to!string(i + 1)));
         }
     }}
     //Bucket Uniform varying N
@@ -253,15 +252,32 @@ void main()
             testingKDTree!D(file, testType, structType, k, N, trials, num_queries, "G");
         }}
     }
-    //KDTree Uniform and Gaussian Varying D
-    // static foreach (D; 1 .. 8) {{
-    //     string testType = "d";
-    //     string structType = "kdTree";
-    //     int k = 25;
-    //     int N = 1000;
-    //     testingKDTree!D(file, testType, structType, k, N, trials, num_queries, "U");
-    //     testingKDTree!D(file, testType, structType, k, N, trials, num_queries, "G");
-    // }}
+    //KDTree Gaussian Varying D
+    static foreach (D; 1 .. 8) {{
+        string testType = "d";
+        string structType = "kdTree";
+        int k = 25;
+        int N = 1000;
+        string distribution_type = "G";
+    
+        foreach (trial; 0 .. trials) {
+            long totalTime = 0;
+            Point!D[] trainingPoints = getGaussianPoints!D(N);
+            Point!D[] testingPoints = getUniformPoints!D(num_queries);
+            auto tree = KDTree!D(trainingPoints);
+            auto sw = StopWatch(AutoStart.no);
+            for (int round = 0; round < 50; round++) {
+                sw.start;
+                foreach(const ref qp; testingPoints) {
+                    tree.knnQuery(qp, k);
+                }
+                sw.stop;
+                totalTime += sw.peek.total!"usecs";
+            }
+            long averageTime = totalTime / 50;
+            file.writeln(testType, ",", structType, "," , k, ",", N, ",", D, ",", distribution_type, ",", averageTime, ",", trial + 1);
+        }
+    }}
     file.close();
 }//end of main
 
@@ -324,7 +340,7 @@ template performTestingImpl(int D, alias TreeType)
                 file.writeln(testType, ",", structType, ",", k, ",", N, ",", D, ",", distribution_type, ",", averageTime, ",", trial + 1);
             }
             if (structType == "kdTree") {
-                KDTree tree = KDTree(trainingPoints);
+                auto tree = KDTree!D(trainingPoints);
                 long totalTime = 0;
                 auto sw = StopWatch(AutoStart.no);
                 for (int round = 0; round < 50; round++) {
