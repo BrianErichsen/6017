@@ -45,13 +45,10 @@ struct KDTree(size_t D) {
             auto leftPoints = points.medianByDimension!splitDimension;
             // '$' means length of array when slicing
             // uses the median for slicing
-            //this.point = leftPoints[$ / 2];
             this.point = points[leftPoints.length];
             //writeln("Selected median point: ", this.point);
             //partition points into left and right based on median
             auto rightPoints = points[points.length / 2 + 1 .. $];
-            //leftPoints = points[0 .. $ / 2];
-            //auto leftPoints = points[0 .. $ - rightPoints.length];
             //writeln("Left points: ", leftPoints);
             //writeln("Right points: ", rightPoints);
 
@@ -87,10 +84,6 @@ struct KDTree(size_t D) {
         //of different split dimentions
         void recurse(NodeType)(NodeType node) {
             //consider point first
-            //return early since no points are within desired distance
-            //if (distance(node.aabb.closest(p), p) >= r) return;
-            //if its a leaf node, check the point stored in the node
-            //if (node.left is null && node.right is null) {
                 // stores result if within distance
             if (distance(p, node.point) <= r) result ~= node.point;
             //} else {

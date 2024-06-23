@@ -19,13 +19,13 @@ alias P2 = Point!2;
 void main()
 {
     //Parameters for testing
-    int[] k_values = [1, 5, 10, 20];
-    int[] N_values = [100, 1000, 5000, 10000];
-    int trials = 1;
+    int[] k_values = [1, 5, 10, 20, 25];
+    int[] N_values = [100, 1000, 5000, 10000, 20000];
+    int trials = 3;
     int num_queries = 100;
     int num_reps = 50;
     // Opens csv file for writing - appending the data
-    File file = File("timing.csv", "a");
+    File file = File("timing2.csv", "a");
     //file.writefln("testType,structType,k,N,D,distribution,timing,trial");
 
     //BucketKNN Gaussian for varying k
@@ -65,7 +65,7 @@ void main()
                 totalTime += sw.peek.total!"usecs";
             }
             long averageTime = totalTime/num_reps;
-            file.writeln("d,bucket,25,1000,"~(to!string(dim))~",G,"~(to!string(averageTime))~","~(to!string(i + 1)));
+            file.writeln("d,bucket,10,1000,"~(to!string(dim))~",G,"~(to!string(averageTime))~","~(to!string(i + 1)));
         }
     }}
     //Bucket Gaussian varying N
@@ -256,13 +256,39 @@ void main()
     static foreach (D; 1 .. 8) {{
         string testType = "d";
         string structType = "kdTree";
-        int k = 25;
+        int k = 10;
         int N = 1000;
         string distribution_type = "G";
     
         foreach (trial; 0 .. trials) {
             long totalTime = 0;
             Point!D[] trainingPoints = getGaussianPoints!D(N);
+            Point!D[] testingPoints = getUniformPoints!D(num_queries);
+            auto tree = KDTree!D(trainingPoints);
+            auto sw = StopWatch(AutoStart.no);
+            for (int round = 0; round < 50; round++) {
+                sw.start;
+                foreach(const ref qp; testingPoints) {
+                    tree.knnQuery(qp, k);
+                }
+                sw.stop;
+                totalTime += sw.peek.total!"usecs";
+            }
+            long averageTime = totalTime / 50;
+            file.writeln(testType, ",", structType, "," , k, ",", N, ",", D, ",", distribution_type, ",", averageTime, ",", trial + 1);
+        }
+    }}
+    //KDTree Uniform Varying D
+    static foreach (D; 1 .. 8) {{
+        string testType = "d";
+        string structType = "kdTree";
+        int k = 10;
+        int N = 1000;
+        string distribution_type = "U";
+    
+        foreach (trial; 0 .. trials) {
+            long totalTime = 0;
+            Point!D[] trainingPoints = getUniformPoints!D(N);
             Point!D[] testingPoints = getUniformPoints!D(num_queries);
             auto tree = KDTree!D(trainingPoints);
             auto sw = StopWatch(AutoStart.no);
