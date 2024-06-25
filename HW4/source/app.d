@@ -26,7 +26,7 @@ void main()
     int num_reps = 50;
     // Opens csv file for writing - appending the data
     File file = File("timing2.csv", "a");
-    //file.writefln("testType,structType,k,N,D,distribution,timing,trial");
+    file.writefln("testType,structType,k,N,D,distribution,timing,trial");
 
     //BucketKNN Gaussian for varying k
     foreach (k; k_values) {
