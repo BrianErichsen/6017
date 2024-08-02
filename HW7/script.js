@@ -4,6 +4,19 @@ import { feature, mesh } from 'https://cdn.jsdelivr.net/npm/topojson@3/+esm';
 const width = 960;
 const height = 600;
 
+window.onload = async function() {
+    // Load US map data and create the map
+    const us = await d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json");
+    console.log("Loaded US Map Data:", us);
+    
+    // Load the COVID data
+    const data = await loadData('01-01-2021.csv');
+
+    createMap(us, data);
+    createConfirmedChart(data);
+    createDeathChart(data);
+};
+
 // Function to load and parse CSV
 async function loadData(file) {
     // Load CSV data using D3 and auto-detect data types
@@ -12,17 +25,15 @@ async function loadData(file) {
     // Return an array of objects with selected fields
     return data.map(d => ({
         state: d.Province_State,
-        confirmed: d.Confirmed,
-        deaths: d.Deaths,
+        confirmed: +d.Confirmed,
+        deaths: +d.Deaths,
         recovered: d.Recovered,
         lat: d.Lat,
         long: d.Long_
     }));
 }
 
-async function createMap(us) {
-    // Load the COVID data
-    const data = await loadData('01-01-2021.csv');
+async function createMap(us, data) {
 
     // Define a color scale based on confirmed cases
     const color = d3.scaleSequential()
@@ -38,6 +49,7 @@ async function createMap(us) {
         .scaleExtent([1, 8])
         .on("zoom", zoomed);
 
+
     // Create the SVG container
     const svg = d3.select("#map")
         .attr("viewBox", [0, 0, width, height])
@@ -49,7 +61,7 @@ async function createMap(us) {
     // Define the projection and path generator
     const projection = d3.geoAlbersUsa()
         .scale(1300)
-        .translate([width / 2, height / 2]);
+        .translate([width / 1000, height / 1000]);
 
     const path = d3.geoPath().projection(projection);
 
@@ -92,6 +104,7 @@ async function createMap(us) {
             if (d.lat !== null && d.long !== null) {
                 const coords  = projection([d.long, d.lat]);
                 if (coords) {
+                    //for debugging purposes we are logging each coordinate
                     console.log(`State: ${d.state}, Coordinates: (${d.lat}, ${d.long}), Projection: (${coords[0]}, ${coords[1]})`);
                     return `translate(${coords[0]},${coords[1]})`;
                 }
@@ -99,7 +112,7 @@ async function createMap(us) {
             return "translate(-9999, -9999)";
         })
         .attr("r", d => radius(d.deaths))
-        .attr("fill", "blue")
+        .attr("fill", "black")
         .attr("opacity", 0.7);
 
     // Apply the zoom behavior to the SVG
@@ -140,11 +153,27 @@ async function createMap(us) {
     }
 
     function mouseover(event, d) {
-        d3.select(this).style("stroke", "black").style("stroke-width", 2);
+        d3.select(this).classed("state-highlight", true);
+            // Highlight the corresponding bars in both charts
+        d3.select("#confirmedChart").selectAll(".bar")
+        .filter(barData => barData.state === d.properties.name) // Ensure matching data key
+        .classed("highlight", true);
+        d3.select("#deathChart").selectAll(".bar")
+        .filter(barData => barData.state === d.properties.name) // Ensure matching data key
+        .classed("highlight", true);
     }
 
     function mouseout(event, d) {
-        d3.select(this).style("stroke", null).style("stroke-width", null);
+        //outlines state
+        d3.select(this).classed("state-highlight", false);
+        // Remove highlighting from confirmed COVID Cases BarChart
+        d3.select("#confirmedChart").selectAll(".bar")
+        .filter(barData => barData.state === d.properties.name) // Ensure matching data key
+        .classed("highlight", false);
+        // Remove highlighting from COVID Death Cases BarChart
+        d3.select("#deathChart").selectAll(".bar")
+        .filter(barData => barData.state === d.properties.name) // Ensure matching data key
+        .classed("highlight", false);
     }
 
     function updateBarChart(stateName) {
@@ -158,9 +187,171 @@ async function createMap(us) {
     svg.call(zoom.transform, d3.zoomIdentity.translate(initialTranslate[0], initialTranslate[1]).scale(initialScale));
 } // end of create map method
 
-window.onload = async function() {
-    // Load US map data and create the map
-    const us = await d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json");
-    console.log("Loaded US Map Data:", us);
-    createMap(us);
-};
+//Function to create the confirmed cases bar chart
+function createConfirmedChart(data) {
+    const margin = { top: 20, right: 30, bottom: 100, left: 60 },
+        width = 700 - margin.left - margin.right,
+        height = 400 - margin.top - margin.bottom;
+
+    // Create scales
+    const xScale = d3.scaleBand()
+    .domain(data.map(d => d.state))
+    .range([0, width])
+    .padding(0.1);
+
+    const yScaleConfirmed = d3.scaleLinear()
+    .domain([0, d3.max(data, d => d.confirmed)])
+    .nice()
+    .range([height, 0]);
+
+    // Create SVG container
+    const svgConfirmed = d3.select("#confirmedChart")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // Draw axes
+    svgConfirmed.append("g")
+    .attr("transform", `translate(0,${height})`)
+    .call(d3.axisBottom(xScale))
+    .selectAll("text")
+    .attr("transform", "rotate(-45)")
+    .style("text-anchor", "end");
+
+    //adds title
+    svgConfirmed.append("text")
+    .attr("x", (width / 2) + margin.left)
+    .attr("y", margin.top / 2)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "16px")
+    .attr("font-weight", "bold")
+    .text("COVID-19 Confirmed Cases by State");
+    
+    svgConfirmed.append("g")
+    .call(d3.axisLeft(yScaleConfirmed));
+
+    // Draw bars
+    svgConfirmed.selectAll(".bar")
+    .data(data)
+    .enter()
+    .append("rect")
+    .attr("class", "bar")
+    .attr("x", d => xScale(d.state))
+    .attr("y", d => yScaleConfirmed(d.confirmed))
+    .attr("width", xScale.bandwidth())
+    .attr("height", d => height - yScaleConfirmed(d.confirmed))
+    .attr("fill", "steelblue")
+    .on("mouseover", function(event, d) {
+        //d3.select('#map').selectAll("path").classed("highlight", false);
+        d3.select(this).classed("highlight", true);
+        d3.select("#deathChart").selectAll(".bar")
+        .filter(barData => barData.state === d.state)
+        .classed("highlight", true);
+        d3.select("#map").selectAll("path")
+        .filter(stateData => stateData && stateData.properties && stateData.properties.name === d.state)
+        .classed("highlight", true);
+    })
+
+    .on("mouseout", function(event, d) {
+        //removes highlight for me (Confirmed Case Bar Chart)
+        d3.select(this).classed("highlight", false);
+        //removes highlight for me (Confirmed Case Bar Chart)
+        d3.select("#deathChart").selectAll(".bar")
+        .filter(barData => barData.state === d.state)
+        .classed("highlight", false);
+        
+        // // Remove highlighting state map
+        d3.select("#map").selectAll("path")
+        .filter(stateData => stateData && stateData.properties && stateData.properties.name === d.state)
+        .classed("highlight", false);
+    });
+}
+
+// Function to create the deaths bar chart
+function createDeathChart(data) {
+    const margin = { top: 20, right: 30, bottom: 100, left: 40 },
+        width = 700 - margin.left - margin.right,
+        height = 400 - margin.top - margin.bottom;
+
+    // Create scales
+    const xScale = d3.scaleBand()
+    .domain(data.map(d => d.state))
+    .range([0, width])
+    .padding(0.1);
+
+    const yScaleDeaths = d3.scaleLinear()
+    .domain([0, d3.max(data, d => d.deaths)])
+    .nice()
+    .range([height, 0]);
+
+    // Create SVG container
+    const svgDeaths = d3.select("#deathChart")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+
+    // Add title to the deaths chart
+    svgDeaths.append("text")
+    .attr("x", (width / 2) + margin.left)
+    .attr("y", margin.top / 2)
+    .attr("text-anchor", "middle")
+    .attr("font-size", "16px")
+    .attr("font-weight", "bold")
+    .text("COVID-19 Deaths by State");
+    
+    // Draw axes
+    svgDeaths.append("g")
+    .attr("transform", `translate(0,${height})`)
+    .call(d3.axisBottom(xScale))
+    .selectAll("text")
+    .attr("transform", "rotate(-45)")
+    .style("text-anchor", "end");
+
+    svgDeaths.append("g")
+    .call(d3.axisLeft(yScaleDeaths));
+
+    // Draw bars
+    svgDeaths.selectAll(".bar")
+    .data(data)
+    .enter()
+    .append("rect")
+    .attr("class", "bar")
+    .attr("x", d => xScale(d.state))
+    .attr("y", d => yScaleDeaths(d.deaths))
+    .attr("width", xScale.bandwidth())
+    .attr("height", d => height - yScaleDeaths(d.deaths))
+    .attr("fill", "steelblue")
+    //Bars "highlight" orange on hover
+    .on("mouseover", function(event, d) {
+        //make my bar orange (death)
+        d3.select(this).classed("highlight", true);
+
+        //make c
+        d3.select("#confirmedChart").selectAll(".bar")
+        .filter(barData => barData.state === d.state)
+        .classed("highlight", true);
+
+        // // Highlight state in the map
+        d3.select("#map").selectAll("path")
+        .filter(stateData => stateData && stateData.properties && stateData.properties.name === d.state)
+        .classed("highlight", true);
+    })
+    //Bars "un-highlight" back to blue
+    .on("mouseout", function(event, d) {
+        //remove highlight from my bar (Death Bar Chart)
+        d3.select(this).classed("highlight", false);
+
+         //remove highlight from my bar (Confrimed Case Bar Chart)
+        d3.select("#confirmedChart").selectAll(".bar")
+        .filter(barData => barData.state === d.state)
+        .classed("highlight", false);
+
+        // // Remove highlighting state map
+        d3.select("#map").selectAll("path")
+        .filter(stateData => stateData && stateData.properties && stateData.properties.name === d.state)
+        .classed("highlight", false);
+    });
+}
