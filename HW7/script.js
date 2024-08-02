@@ -14,7 +14,9 @@ async function loadData(file) {
         state: d.Province_State,
         confirmed: d.Confirmed,
         deaths: d.Deaths,
-        recovered: d.Recovered
+        recovered: d.Recovered,
+        lat: d.Lat,
+        long: d.Long_
     }));
 }
 
@@ -26,6 +28,10 @@ async function createMap(us) {
     const color = d3.scaleSequential()
         .domain([0, d3.max(data, d => d.confirmed)])
         .interpolator(d3.interpolateReds);
+
+    //death circle in each state
+    const radius = d3.scaleSqrt().domain([0, d3.max(data, d => d.deaths)])
+    .range([0, 15]);
 
     // Define the zoom behavior
     const zoom = d3.zoom()
@@ -58,6 +64,8 @@ async function createMap(us) {
         .data(feature(us, us.objects.states).features)
         .join("path")
         .on("click", clicked)
+        .on("mouseover", mouseover)
+        .on("mouseout", mouseout)
         .attr("d", path)
         .attr("fill", d => {
             const stateData = data.find(state => state.state === d.properties.name);
@@ -74,6 +82,25 @@ async function createMap(us) {
         .attr("stroke", "white")
         .attr("stroke-linejoin", "round")
         .attr("d", path(mesh(us, us.objects.states, (a, b) => a !== b)));
+
+
+    //appends each circle that represens proportion of death per state
+    g.selectAll("circle")
+        .data(data)
+        .join("circle")
+        .attr("transform", d => {
+            if (d.lat !== null && d.long !== null) {
+                const coords  = projection([d.long, d.lat]);
+                if (coords) {
+                    console.log(`State: ${d.state}, Coordinates: (${d.lat}, ${d.long}), Projection: (${coords[0]}, ${coords[1]})`);
+                    return `translate(${coords[0]},${coords[1]})`;
+                }
+            }
+            return "translate(-9999, -9999)";
+        })
+        .attr("r", d => radius(d.deaths))
+        .attr("fill", "blue")
+        .attr("opacity", 0.7);
 
     // Apply the zoom behavior to the SVG
     svg.call(zoom);
@@ -102,6 +129,7 @@ async function createMap(us) {
               .translate(-(x0 + x1) / 2, -(y0 + y1) / 2),
             d3.pointer(event, svg.node())
         );
+        updateBarChart(d.properties.name);
     }
 
     // Handle zoom events
@@ -111,11 +139,24 @@ async function createMap(us) {
         g.attr("stroke-width", 1 / transform.k);
     }
 
+    function mouseover(event, d) {
+        d3.select(this).style("stroke", "black").style("stroke-width", 2);
+    }
+
+    function mouseout(event, d) {
+        d3.select(this).style("stroke", null).style("stroke-width", null);
+    }
+
+    function updateBarChart(stateName) {
+        const stateData = data.find(state => state.state == stateName);
+        // --
+    }
+
     // Initial center and scale for the map
-    const initialScale = 1.5;
+    const initialScale = 0.8;
     const initialTranslate = [width / 2, height / 2];
     svg.call(zoom.transform, d3.zoomIdentity.translate(initialTranslate[0], initialTranslate[1]).scale(initialScale));
-}
+} // end of create map method
 
 window.onload = async function() {
     // Load US map data and create the map
