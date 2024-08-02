@@ -142,7 +142,13 @@ async function createMap(us, data) {
               .translate(-(x0 + x1) / 2, -(y0 + y1) / 2),
             d3.pointer(event, svg.node())
         );
-        updateBarChart(d.properties.name);
+        const stateData = data.find(state => state.state === d.properties.name);
+        if (stateData) {
+            console.log("Selected State Data: ", stateData);
+            updateStateBarChart(stateData);
+        } else {
+            console.error("No data found for state: ", d.properties.name);
+        }
     }
 
     // Handle zoom events
@@ -174,11 +180,6 @@ async function createMap(us, data) {
         d3.select("#deathChart").selectAll(".bar")
         .filter(barData => barData.state === d.properties.name) // Ensure matching data key
         .classed("highlight", false);
-    }
-
-    function updateBarChart(stateName) {
-        const stateData = data.find(state => state.state == stateName);
-        // --
     }
 
     // Initial center and scale for the map
@@ -355,3 +356,67 @@ function createDeathChart(data) {
         .classed("highlight", false);
     });
 }
+
+function updateStateBarChart(stateData) {
+    // Remove the existing state details chart if it exists
+    d3.select("#stateDetailsChart").remove();
+
+    // Define the dimensions and margins for the state details chart
+    const margin = { top: 20, right: 30, bottom: 40, left: 60 },
+        width = 500 - margin.left - margin.right,
+        height = 300 - margin.top - margin.bottom;
+
+    // Create a new SVG container for the state details chart
+    const svgStateDetails = d3.select("body").append("svg")
+        .attr("id", "stateDetailsChart")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // Define the data for the state details chart
+    const stateDetailsData = [
+        { category: "Confirmed", value: stateData.confirmed },
+        { category: "Deaths", value: stateData.deaths }
+    ];
+
+    // Define the scales for the state details chart
+    const xScale = d3.scaleBand()
+        .domain(stateDetailsData.map(d => d.category))
+        .range([0, width])
+        .padding(0.1);
+
+    const yScale = d3.scaleLinear()
+        .domain([0, d3.max(stateDetailsData, d => d.value)])
+        .nice()
+        .range([height, 0]);
+
+    // Draw the axes for the state details chart
+    svgStateDetails.append("g")
+        .attr("transform", `translate(0,${height})`)
+        .call(d3.axisBottom(xScale));
+
+    svgStateDetails.append("g")
+        .call(d3.axisLeft(yScale));
+
+    // Draw the bars for the state details chart
+    svgStateDetails.selectAll(".bar")
+        .data(stateDetailsData)
+        .enter()
+        .append("rect")
+        .attr("class", "bar")
+        .attr("x", d => xScale(d.category))
+        .attr("y", d => yScale(d.value))
+        .attr("width", xScale.bandwidth())
+        .attr("height", d => height - yScale(d.value))
+        .attr("fill", "steelblue");
+
+    // Add title to the state details chart
+    svgStateDetails.append("text")
+        .attr("x", (width / 2))
+        .attr("y", 0 - (margin.top / 2))
+        .attr("text-anchor", "middle")
+        .attr("font-size", "16px")
+        .attr("font-weight", "bold")
+        .text(`COVID-19 Details for ${stateData.state}`);
+}//end of update state bar chart method
