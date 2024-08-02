@@ -29,7 +29,8 @@ async function loadData(file) {
         deaths: +d.Deaths,
         recovered: d.Recovered,
         lat: d.Lat,
-        long: d.Long_
+        long: d.Long_,
+        active: d.Active
     }));
 }
 
@@ -377,7 +378,9 @@ function updateStateBarChart(stateData) {
     // Define the data for the state details chart
     const stateDetailsData = [
         { category: "Confirmed", value: stateData.confirmed },
-        { category: "Deaths", value: stateData.deaths }
+        { category: "Deaths", value: stateData.deaths },
+        { category: "Recovered", value: stateData.recovered},
+        { category: "Active cases", value: stateData.active}
     ];
 
     // Define the scales for the state details chart
