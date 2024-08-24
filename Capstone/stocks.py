@@ -17,4 +17,9 @@ for ticker in tickers:
     df = yf.download(ticker, start=start_date, end=end_date, interval='1d')
     df.to_excel(xlwriter, sheet_name=ticker) #index=False
 
+# dowload the SP500 data from yahoo finance website as well
+sp500 = yf.download('^GSPC', start=start_date, end=end_date, interval='1d')
+sp500.to_excel(xlwriter, sheet_name='S&P 500')
+
 xlwriter.close()
+
