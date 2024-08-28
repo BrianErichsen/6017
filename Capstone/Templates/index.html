@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Prediction</title>
+</head>
+<body>
+    <div class="container">
+        <h1>Stock Prediction</h1>
+        <form id="prediction-form">
+            <label for="stock">Stock Symbol:</label>
+            <input type="text" id="stock" name="stock" required><br><br>
+            <label for="prediction-type">Prediction Type:</label>
+            <select id="prediction-type" name="prediction-type" required>
+                <option value="next-day">Next Day</option>
+                <option value="multi-day">Multiple Days</option>
+            </select><br><br>
+
+            <div id ="next-day-inputs">
+                <label>Next Day Prediction (auto-selected):</label><br><br>
+            </div>
+            <div>
+                <label for="n_future">Days Ahead to Predict:</label>
+                <input type="number" id="n_future" name="n_future" min="1" max="30" required><br><br>
+            </div>
+
+            <button type="submit">Predict</button>
+        </form>
+        <div id="result"></div>
+    </div>
+    <script src="/static/script.js" charset="UTF-8"></script>
+</body>
+</html>
