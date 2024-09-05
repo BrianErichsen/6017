@@ -25,7 +25,7 @@ print(combined_data.head())
 print(combined_data.tail())
 
 scaler = MinMaxScaler(feature_range=(0, 1))
-scaled_data = scaler.fit_transform(combined_data[['Close', 'Volume']])
+scaled_data = scaler.fit_transform(combined_data[['Close']])
 
 # loads the home page route
 @app.route('/')
@@ -60,18 +60,30 @@ def predict():
         
         elif prediction_type == 'multi-day':
             n_future = int(data.get('n_future'))
-            last_60_days = combined_data[combined_data['Stock'] == stock].tail(60)
-            last_60_days_scaled = scaler.transform(last_60_days[['Close', 'Volume']])
+            last_60_days = combined_data.tail(60)
+            last_60_days_scaled = scaler.transform(last_60_days[['Close']])
     
             x_input = np.array([last_60_days_scaled])
-            x_input = np.reshape(x_input, (x_input.shape[0], x_input.shape[1], x_input.shape[2]))
+            x_input = np.reshape(x_input, (x_input.shape[0], x_input.shape[1], 1))
 
-        # Predict
-            predictions_scaled = model_multi_day.predict(x_input)
-            predictions = scaler.inverse_transform(
-                np.concatenate([predictions_scaled, np.zeros((n_future, 1))], axis=1)
-            )[:, 0]
-            return jsonify(predictions.toList())
+            # Predict future prices
+            # the predicted price is a 2D array
+            predicted_stock_price = model_multi_day.predict(x_input)
+            predicted_stock_price = np.array(predicted_stock_price).reshape(-1, 1)
+
+            # dummy array to match original number of features in the scaled data - 1 since
+            # original scaling was based on only Close
+            dummy_array = np.zeros((predicted_stock_price.shape[0], scaled_data.shape[1] - 1))
+            # concatenate both so we have proper shape for inverse scaling process
+            # axis 1 makes sure we append columns side by side
+            predicted_stock_price_full = np.concatenate((predicted_stock_price, dummy_array), axis=1)
+            #reverts back scaled to normal data we only extract :, 0 - only close columns and take out the
+            # dummy values
+            predicted_price = scaler.inverse_transform(predicted_stock_price_full)[:, 0]
+            predicted_price_list = predicted_price.tolist()
+            predicted_price_list_formatted = ['%.2f' % elem for elem in predicted_price_list]
+
+            return jsonify(predicted_price_list_formatted)
 
     except Exception as e:
         print(f'{e}')
