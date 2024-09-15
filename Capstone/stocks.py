@@ -8,10 +8,10 @@ import yfinance as yf
 ## how to tell if stock is overvalued or undervalued P/E ratio, P/B ratio, dividend yield
 # states which stocks data to download
 tickers = ['TSLA', 'MSFT', 'GOOG', 'AAPL']
-start_date = '2022-01-01'
-end_date = '2024-08-19'
+start_date = '2020-01-01'
+end_date = '2024-09-07'
 
-xlwriter = pd.ExcelWriter('historical_prices.xlsx', engine='openpyxl')
+xlwriter = pd.ExcelWriter('historical_prices2.xlsx', engine='openpyxl')
 
 for ticker in tickers:
     df = yf.download(ticker, start=start_date, end=end_date, interval='1d')

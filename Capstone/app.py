@@ -45,9 +45,12 @@ def predict():
 
         if prediction_type == 'next-day':
             # Prepare input for next day prediction
-            new_data = scaler.fit_transform(combined_data[['Close']])
 
-            x_input = np.array([scaled_data[:, 0]])
+            #transforms the scaled data - 2D numpy array of scaled Close prices
+            last_60_days = combined_data[combined_data['Stock'] == stock].tail(60)
+            last_60_days_scaled = scaler.transform(last_60_days[['Close']])
+
+            x_input = np.array([last_60_days_scaled[:, 0]])
             x_input = np.reshape(x_input, (x_input.shape[0], x_input.shape[1], 1))
 
             # Predict next day price
@@ -60,7 +63,7 @@ def predict():
         
         elif prediction_type == 'multi-day':
             n_future = int(data.get('n_future'))
-            last_60_days = combined_data.tail(60)
+            last_60_days = combined_data[combined_data['Stock'] == stock].tail(60)
             last_60_days_scaled = scaler.transform(last_60_days[['Close']])
     
             x_input = np.array([last_60_days_scaled])
