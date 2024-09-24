@@ -3,29 +3,17 @@ import numpy as np
 import pandas as pd
 from tensorflow.keras.models import load_model
 from sklearn.preprocessing import MinMaxScaler
+from datetime import datetime
+import yfinance as yf
+from nn import train_and_save_model
+import os
 
 # flask runs on localhost/5000
 
 app = Flask(__name__)
 
-model_next_day = load_model('stock_prediction_model.h5')
-model_multi_day = load_model('stock_prediction_model2.h5')
-
-# Load and scale data
-excel_data = pd.read_excel('historical_prices.xlsx', sheet_name=None)
-combined_data = pd.DataFrame()
-
-for sheet_name, df in excel_data.items():
-    df['Stock'] = sheet_name
-    combined_data = pd.concat([combined_data, df], ignore_index=True)
-
-print(combined_data.info())
-print(combined_data.columns)
-print(combined_data.head())
-print(combined_data.tail())
-
-scaler = MinMaxScaler(feature_range=(0, 1))
-scaled_data = scaler.fit_transform(combined_data[['Close']])
+now = datetime.now()
+todays_date = now.strftime("%Y-%m-%d")
 
 # loads the home page route
 @app.route('/')
@@ -36,25 +24,43 @@ def index():
 def predict():
     # Get form data
     try:
-        print("Test")
         data = request.json
-        print(f"{data}")
         stock = data.get('stock')
         prediction_type = data.get('prediction_type')
         print(f"Received request for stock: {stock}, predicting {prediction_type}.")
 
+        # lets check for stock path and if not existing then we create a new model
+        model_path = f'models/{stock}/{stock}.h5' #stock path
+
+        # fetches data from yahoo finance
+        stock_data = yf.download(stock, period='3mo', interval='1d')
+
+        # if data retrieved is empty then user input is not correct - non existing stock
+        if stock_data is None or stock_data.empty:
+            return jsonify({'Error': f'Stock not available from Yahoo Finance database for {stock}!!'})
+
+        # if no model for given stock then we create a new model
+        if not os.path.exists(model_path):
+            print(f'AI Model will be attepted to be for {stock}')
+            train_and_save_model(stock)
+            print(f'Finished training new Model for {stock}')
+
+        stock_data = stock_data[-60:]
+        stock_data.isnull().sum() # if number were not 0 then
+        stock_data.fillna(method='ffill', inplace=True)
+
+        scaler = MinMaxScaler(feature_range=(0,1))
+        data_scaled = scaler.fit_transform(stock_data['Close'].values.reshape(-1, 1))
+        model = load_model(model_path)
+
         if prediction_type == 'next-day':
             # Prepare input for next day prediction
 
-            #transforms the scaled data - 2D numpy array of scaled Close prices
-            last_60_days = combined_data[combined_data['Stock'] == stock].tail(60)
-            last_60_days_scaled = scaler.transform(last_60_days[['Close']])
-
-            x_input = np.array([last_60_days_scaled[:, 0]])
+            x_input = np.array([data_scaled[-60:].reshape(60)])
             x_input = np.reshape(x_input, (x_input.shape[0], x_input.shape[1], 1))
 
             # Predict next day price
-            predicted_stock_price = model_next_day.predict(x_input)
+            predicted_stock_price = model.predict(x_input)
             predicted_price = scaler.inverse_transform(
                 np.array([predicted_stock_price[0], [0]])
             )[0][0]
@@ -63,30 +69,19 @@ def predict():
         
         elif prediction_type == 'multi-day':
             n_future = int(data.get('n_future'))
-            last_60_days = combined_data[combined_data['Stock'] == stock].tail(60)
-            last_60_days_scaled = scaler.transform(last_60_days[['Close']])
+            predicted_prices = []
+            current_batch = data_scaled[-60:].reshape(1, 60, 1)
+            for i in range(n_future):
+                next_prediction = model.predict(current_batch)
+                next_prediction_reshaped = next_prediction.reshape(1, 1, 1)
+                current_batch = np.append(current_batch[:, 1:, :], next_prediction_reshaped, axis=1)
+                predicted_price = float(scaler.inverse_transform(next_prediction)[0, 0])
+                predicted_prices.append(predicted_price)
+
+            predicted_prices_formatted = ['%.2f' % elem for elem in predicted_prices]
     
-            x_input = np.array([last_60_days_scaled])
-            x_input = np.reshape(x_input, (x_input.shape[0], x_input.shape[1], 1))
-
-            # Predict future prices
-            # the predicted price is a 2D array
-            predicted_stock_price = model_multi_day.predict(x_input)
-            predicted_stock_price = np.array(predicted_stock_price).reshape(-1, 1)
-
-            # dummy array to match original number of features in the scaled data - 1 since
-            # original scaling was based on only Close
-            dummy_array = np.zeros((predicted_stock_price.shape[0], scaled_data.shape[1] - 1))
-            # concatenate both so we have proper shape for inverse scaling process
-            # axis 1 makes sure we append columns side by side
-            predicted_stock_price_full = np.concatenate((predicted_stock_price, dummy_array), axis=1)
-            #reverts back scaled to normal data we only extract :, 0 - only close columns and take out the
-            # dummy values
-            predicted_price = scaler.inverse_transform(predicted_stock_price_full)[:, 0]
-            predicted_price_list = predicted_price.tolist()
-            predicted_price_list_formatted = ['%.2f' % elem for elem in predicted_price_list]
-
-            return jsonify(predicted_price_list_formatted)
+        
+            return jsonify(predicted_prices_formatted)
 
     except Exception as e:
         print(f'{e}')
