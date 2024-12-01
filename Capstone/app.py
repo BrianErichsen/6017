@@ -65,7 +65,7 @@ def predict():
                 np.array([predicted_stock_price[0], [0]])
             )[0][0]
 
-            return jsonify([f'Predicted Closing Price: {predicted_price:.2f}'])
+            return jsonify([f'Predicted Closing Price for {stock}: {predicted_price:.2f}'])
         
         elif prediction_type == 'multi-day':
             n_future = int(data.get('n_future'))
